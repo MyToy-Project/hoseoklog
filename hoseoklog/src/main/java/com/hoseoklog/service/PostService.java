@@ -4,6 +4,9 @@ import com.hoseoklog.domain.Post;
 import com.hoseoklog.repository.PostRepository;
 import com.hoseoklog.request.PostCreateRequest;
 import com.hoseoklog.response.PostCreateResponse;
+import com.hoseoklog.response.PostResponse;
+import com.hoseoklog.response.PostsResponse;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -19,11 +22,26 @@ public class PostService {
 
     public PostCreateResponse write(final PostCreateRequest postCreateRequest) {
         Post post = Post.builder()
-                .title(postCreateRequest.getTitle())
-                .content(postCreateRequest.getContent())
+                .title(postCreateRequest.title())
+                .content(postCreateRequest.content())
                 .build();
 
         Post savedPost = postRepository.save(post);
         return new PostCreateResponse(savedPost.getId());
+    }
+
+    public PostResponse findPost(final Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+
+        return PostResponse.builder()
+                .title(post.getTitle())
+                .content(post.getContent())
+                .build();
+    }
+
+    public PostsResponse findPosts() {
+        List<Post> posts = postRepository.findAll();
+        return PostsResponse.from(posts);
     }
 }
