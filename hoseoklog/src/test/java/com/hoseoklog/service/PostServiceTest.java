@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import com.hoseoklog.domain.Post;
 import com.hoseoklog.repository.PostRepository;
 import com.hoseoklog.request.PostCreateRequest;
+import com.hoseoklog.request.PostSearchRequest;
 import com.hoseoklog.response.PostResponse;
 import com.hoseoklog.response.PostsResponse;
 import java.util.List;
@@ -86,7 +87,7 @@ class PostServiceTest {
     @Test
     void findPosts() {
         // given
-        List<Post> posts = IntStream.range(1, 31)
+        List<Post> posts = IntStream.range(1, 21)
                 .mapToObj(i -> Post.builder()
                         .title("foo" + i)
                         .content("bar" + i)
@@ -95,14 +96,13 @@ class PostServiceTest {
         postRepository.saveAll(posts);
 
         // when
-        PageRequest pageable = PageRequest.of(0, 5, Direction.DESC, "id");
-        PostsResponse findPosts = postService.findPosts(pageable);
+        PostSearchRequest postSearchRequest = PostSearchRequest.builder().build();
+        PostsResponse findPosts = postService.findPosts(postSearchRequest);
 
         // then
         assertAll(
-                () -> assertThat(findPosts.posts().size()).isEqualTo(5),
-                () -> assertThat(findPosts.posts().get(0).title()).isEqualTo(posts.get(29).getTitle()),
-                () -> assertThat(findPosts.posts().get(4).title()).isEqualTo(posts.get(25).getTitle())
+                () -> assertThat(findPosts.posts().size()).isEqualTo(10),
+                () -> assertThat(findPosts.posts().get(0).title()).isEqualTo("foo20")
         );
     }
 }

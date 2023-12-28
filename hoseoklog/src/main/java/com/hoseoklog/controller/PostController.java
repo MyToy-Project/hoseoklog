@@ -1,6 +1,7 @@
 package com.hoseoklog.controller;
 
 import com.hoseoklog.request.PostCreateRequest;
+import com.hoseoklog.request.PostSearchRequest;
 import com.hoseoklog.response.PostCreateResponse;
 import com.hoseoklog.response.PostResponse;
 import com.hoseoklog.response.PostsResponse;
@@ -38,8 +39,8 @@ public class PostController {
     }
 
     @GetMapping("/posts")
-    public ResponseEntity<PostsResponse> findPosts(Pageable pageable) {
-        PostsResponse postsResponse = postService.findPosts(pageable);
+    public ResponseEntity<PostsResponse> findPosts(PostSearchRequest postSearchRequest) {
+        PostsResponse postsResponse = postService.findPosts(postSearchRequest);
         return ResponseEntity.ok(postsResponse);
     }
 }

@@ -118,11 +118,37 @@ class PostControllerTest {
         postRepository.saveAll(posts);
 
         // when & then
-        mockMvc.perform(get("/posts?page=1&sort=id,desc")
+        mockMvc.perform(get("/posts?page=1&size=10")
                         .contentType(APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpectAll(
-                        jsonPath("$.posts.size()", is(5)),
+                        jsonPath("$.posts.size()", is(10)),
+                        jsonPath("$.posts[0].title").value("foo30"),
+                        jsonPath("$.posts[0].content").value("bar30"),
+                        jsonPath("$.posts[4].title").value("foo26"),
+                        jsonPath("$.posts[4].content").value("bar26")
+                )
+                .andDo(print());
+    }
+
+    @DisplayName("페이지를 0으로 조회해도 첫 페이지를 조회한다")
+    @Test
+    void findPosts_withZeroPageNumber() throws Exception {
+        // given
+        List<Post> posts = IntStream.range(1, 31)
+                .mapToObj(i -> Post.builder()
+                        .title("foo" + i)
+                        .content("bar" + i)
+                        .build())
+                .toList();
+        postRepository.saveAll(posts);
+
+        // when & then
+        mockMvc.perform(get("/posts?page=0&size=10")
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpectAll(
+                        jsonPath("$.posts.size()", is(10)),
                         jsonPath("$.posts[0].title").value("foo30"),
                         jsonPath("$.posts[0].content").value("bar30"),
                         jsonPath("$.posts[4].title").value("foo26"),

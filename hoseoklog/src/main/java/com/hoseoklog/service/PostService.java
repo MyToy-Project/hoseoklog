@@ -3,12 +3,12 @@ package com.hoseoklog.service;
 import com.hoseoklog.domain.Post;
 import com.hoseoklog.repository.PostRepository;
 import com.hoseoklog.request.PostCreateRequest;
+import com.hoseoklog.request.PostSearchRequest;
 import com.hoseoklog.response.PostCreateResponse;
 import com.hoseoklog.response.PostResponse;
 import com.hoseoklog.response.PostsResponse;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -41,8 +41,8 @@ public class PostService {
                 .build();
     }
 
-    public PostsResponse findPosts(final Pageable pageable) {
-        List<Post> posts = postRepository.findAll(pageable)
+    public PostsResponse findPosts(final PostSearchRequest postSearchRequest) {
+        List<Post> posts = postRepository.findPosts(postSearchRequest)
                 .stream()
                 .toList();
 
