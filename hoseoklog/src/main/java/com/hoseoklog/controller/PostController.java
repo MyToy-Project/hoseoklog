@@ -7,6 +7,7 @@ import com.hoseoklog.response.PostsResponse;
 import com.hoseoklog.service.PostService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,8 +38,8 @@ public class PostController {
     }
 
     @GetMapping("/posts")
-    public ResponseEntity<PostsResponse> findPosts() {
-        PostsResponse postsResponse = postService.findPosts();
+    public ResponseEntity<PostsResponse> findPosts(Pageable pageable) {
+        PostsResponse postsResponse = postService.findPosts(pageable);
         return ResponseEntity.ok(postsResponse);
     }
 }

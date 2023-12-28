@@ -2,6 +2,11 @@ spring:
   h2:
     console:
       enabled: true
+  data:
+    web:
+      pageable:
+        one-indexed-parameters: true
+        default-page-size: 5
 
   datasource:
     url: jdbc:h2:mem:hoseoklog

@@ -1,6 +1,7 @@
 package com.hoseoklog.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -14,6 +15,7 @@ import com.hoseoklog.domain.Post;
 import com.hoseoklog.repository.PostRepository;
 import com.hoseoklog.request.PostCreateRequest;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -103,31 +105,28 @@ class PostControllerTest {
                 .andDo(print());
     }
 
-    @DisplayName("글 여러개 조회")
+    @DisplayName("글 1페이지 조회")
     @Test
     void findPosts() throws Exception {
         // given
-        Post post1 = Post.builder()
-                .title("foo1")
-                .content("bar1")
-                .build();
-        Post post2 = Post.builder()
-                .title("foo2")
-                .content("bar2")
-                .build();
-        List<Post> posts = List.of(post1, post2);
+        List<Post> posts = IntStream.range(1, 31)
+                .mapToObj(i -> Post.builder()
+                        .title("foo" + i)
+                        .content("bar" + i)
+                        .build())
+                .toList();
         postRepository.saveAll(posts);
 
         // when & then
-        mockMvc.perform(get("/posts")
+        mockMvc.perform(get("/posts?page=1&sort=id,desc")
                         .contentType(APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpectAll(
-                        jsonPath("$.posts.size()").value(2),
-                        jsonPath("$.posts[0].title").value("foo1"),
-                        jsonPath("$.posts[0].content").value("bar1"),
-                        jsonPath("$.posts[1].title").value("foo2"),
-                        jsonPath("$.posts[1].content").value("bar2")
+                        jsonPath("$.posts.size()", is(5)),
+                        jsonPath("$.posts[0].title").value("foo30"),
+                        jsonPath("$.posts[0].content").value("bar30"),
+                        jsonPath("$.posts[4].title").value("foo26"),
+                        jsonPath("$.posts[4].content").value("bar26")
                 )
                 .andDo(print());
     }

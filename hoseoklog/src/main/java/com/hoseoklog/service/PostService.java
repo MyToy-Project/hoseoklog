@@ -8,6 +8,7 @@ import com.hoseoklog.response.PostResponse;
 import com.hoseoklog.response.PostsResponse;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -40,8 +41,11 @@ public class PostService {
                 .build();
     }
 
-    public PostsResponse findPosts() {
-        List<Post> posts = postRepository.findAll();
+    public PostsResponse findPosts(final Pageable pageable) {
+        List<Post> posts = postRepository.findAll(pageable)
+                .stream()
+                .toList();
+
         return PostsResponse.from(posts);
     }
 }

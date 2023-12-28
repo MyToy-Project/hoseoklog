@@ -10,12 +10,15 @@ import com.hoseoklog.request.PostCreateRequest;
 import com.hoseoklog.response.PostResponse;
 import com.hoseoklog.response.PostsResponse;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort.Direction;
 
 @SpringBootTest(webEnvironment = WebEnvironment.MOCK)
 class PostServiceTest {
@@ -79,27 +82,27 @@ class PostServiceTest {
         );
     }
 
-    @DisplayName("여러개의 게시글 조회")
+    @DisplayName("1페이지 게시글 조회")
     @Test
     void findPosts() {
         // given
-        Post post1 = Post.builder()
-                .title("foo1")
-                .content("bar1")
-                .build();
-        Post post2 = Post.builder()
-                .title("foo2")
-                .content("bar2")
-                .build();
-        List<Post> posts = List.of(post1, post2);
+        List<Post> posts = IntStream.range(1, 31)
+                .mapToObj(i -> Post.builder()
+                        .title("foo" + i)
+                        .content("bar" + i)
+                        .build())
+                .toList();
         postRepository.saveAll(posts);
 
         // when
-        PostsResponse findPosts = postService.findPosts();
+        PageRequest pageable = PageRequest.of(0, 5, Direction.DESC, "id");
+        PostsResponse findPosts = postService.findPosts(pageable);
 
         // then
         assertAll(
-                () -> assertThat(findPosts.posts().size()).isEqualTo(2)
+                () -> assertThat(findPosts.posts().size()).isEqualTo(5),
+                () -> assertThat(findPosts.posts().get(0).title()).isEqualTo(posts.get(29).getTitle()),
+                () -> assertThat(findPosts.posts().get(4).title()).isEqualTo(posts.get(25).getTitle())
         );
     }
 }
