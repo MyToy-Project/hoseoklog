@@ -1,15 +1,19 @@
 package com.hoseoklog.service;
 
 import com.hoseoklog.domain.Post;
+import com.hoseoklog.domain.PostEditor;
+import com.hoseoklog.exception.PostNotFoundException;
 import com.hoseoklog.repository.PostRepository;
 import com.hoseoklog.request.PostCreateRequest;
 import com.hoseoklog.request.PostSearchRequest;
+import com.hoseoklog.request.PostUpdateRequest;
 import com.hoseoklog.response.PostCreateResponse;
 import com.hoseoklog.response.PostResponse;
 import com.hoseoklog.response.PostsResponse;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -33,7 +37,7 @@ public class PostService {
 
     public PostResponse findPost(final Long postId) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+                .orElseThrow(PostNotFoundException::new);
 
         return PostResponse.builder()
                 .title(post.getTitle())
@@ -47,5 +51,25 @@ public class PostService {
                 .toList();
 
         return PostsResponse.from(posts);
+    }
+
+    @Transactional
+    public void updatePost(final Long id, PostUpdateRequest postUpdateRequest) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(PostNotFoundException::new);
+
+        PostEditor postEditor = post.toEditor()
+                .title(postUpdateRequest.title())
+                .content(postUpdateRequest.content())
+                .build();
+
+        post.updatePost(postEditor);
+    }
+
+    public void deletePost(final Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(PostNotFoundException::new);
+
+        postRepository.delete(post);
     }
 }

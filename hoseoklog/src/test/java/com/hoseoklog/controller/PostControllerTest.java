@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hoseoklog.domain.Post;
 import com.hoseoklog.repository.PostRepository;
 import com.hoseoklog.request.PostCreateRequest;
+import com.hoseoklog.request.PostUpdateRequest;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -154,6 +157,139 @@ class PostControllerTest {
                         jsonPath("$.posts[4].title").value("foo26"),
                         jsonPath("$.posts[4].content").value("bar26")
                 )
+                .andDo(print());
+    }
+
+    @DisplayName("작성한 게시글의 제목을 수정할 수 있다.")
+    @Test
+    void updatePostTitle() throws Exception {
+        // given
+        Post post = Post.builder()
+                .title("제목입니다.")
+                .content("내용입니다.")
+                .build();
+        postRepository.save(post);
+
+        // when
+        PostUpdateRequest postUpdateRequest = PostUpdateRequest.builder()
+                .title("새로운 제목입니다.")
+                .build();
+        mockMvc.perform(patch("/posts/{postId}", post.getId())
+                        .content(objectMapper.writeValueAsString(postUpdateRequest))
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andDo(print());
+
+        // then
+        Post findPost = postRepository.findById(post.getId())
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. id=" + post.getId()));
+        assertAll(
+                () -> assertThat(findPost.getTitle()).isEqualTo("새로운 제목입니다."),
+                () -> assertThat(findPost.getContent()).isEqualTo("내용입니다.")
+        );
+    }
+
+    @DisplayName("작성한 게시글의 내용을 수정할 수 있다.")
+    @Test
+    void updatePostContent() throws Exception {
+        // given
+        Post post = Post.builder()
+                .title("제목입니다.")
+                .content("내용입니다.")
+                .build();
+        postRepository.save(post);
+
+        // when
+        PostUpdateRequest postUpdateRequest = PostUpdateRequest.builder()
+                .content("새로운 내용입니다.")
+                .build();
+        mockMvc.perform(patch("/posts/{postId}", post.getId())
+                        .content(objectMapper.writeValueAsString(postUpdateRequest))
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andDo(print());
+
+        // then
+        Post findPost = postRepository.findById(post.getId())
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. id=" + post.getId()));
+        assertAll(
+                () -> assertThat(findPost.getTitle()).isEqualTo("제목입니다."),
+                () -> assertThat(findPost.getContent()).isEqualTo("새로운 내용입니다.")
+        );
+    }
+
+    @DisplayName("게시글을 삭제할 수 있다.")
+    @Test
+    void deletePost() throws Exception {
+        // given
+        Post post = Post.builder()
+                .title("제목입니다.")
+                .content("내용입니다.")
+                .build();
+        postRepository.save(post);
+
+        // then
+        mockMvc.perform(delete("/posts/{postId}", post.getId())
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andDo(print());
+
+        // then
+        long count = postRepository.count();
+        assertThat(count).isEqualTo(0);
+    }
+
+    @DisplayName("존재하지 않는 게시글을 조회하면 404가 반환됩니다.")
+    @Test
+    void findNotExistsPost() throws Exception {
+        // expected
+        mockMvc.perform(get("/posts/{postId}", 1L)
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andDo(print());
+    }
+
+    @DisplayName("존재하지 않는 게시글을 수정하면 404가 반환됩니다.")
+    @Test
+    void updateNotExistsPost() throws Exception {
+        // given
+        PostUpdateRequest updateRequest = PostUpdateRequest.builder()
+                .title("제목")
+                .content("내용")
+                .build();
+
+        // expected
+        mockMvc.perform(patch("/posts/{postId}", 1L)
+                        .content(objectMapper.writeValueAsString(updateRequest))
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andDo(print());
+    }
+
+    @DisplayName("존재하지 않는 게시글을 삭제하면 404가 반환됩니다.")
+    @Test
+    void deleteNotExistsPost() throws Exception {
+        // expected
+        mockMvc.perform(delete("/posts/{postId}", 1L)
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andDo(print());
+    }
+
+    @DisplayName("게시글 작성시 제목에 바보라는 키워드가 추가되면 400이 반환됩니다.")
+    @Test
+    void writePost_withInvalidKeyword() throws Exception {
+        // given
+        PostCreateRequest request = PostCreateRequest.builder()
+                .title("제목 바보입니다.")
+                .content("내용입니다.")
+                .build();
+
+        // expected
+        mockMvc.perform(post("/posts")
+                        .content(objectMapper.writeValueAsString(request))
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
                 .andDo(print());
     }
 }

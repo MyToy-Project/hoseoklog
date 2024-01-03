@@ -39,4 +39,15 @@ public class Post {
     public String getContent() {
         return content;
     }
+
+    public PostEditor.PostEditorBuilder toEditor() {
+        return PostEditor.builder()
+                .title(title)
+                .content(content);
+    }
+
+    public void updatePost(final PostEditor postEditor) {
+        title = postEditor.title();
+        content = postEditor.content();
+    }
 }
