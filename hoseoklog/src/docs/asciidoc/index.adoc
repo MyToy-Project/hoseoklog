@@ -1,0 +1,12 @@
+= HoseokLog API DOCS
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 2
+:sectlinks:
+:sectnums:
+:docinfo: shared-head
+
+== 테스트
+operation::post/test/success[snippets='http-request']
