@@ -8,5 +8,15 @@
 :sectnums:
 :docinfo: shared-head
 
-== 테스트
-operation::post/test/success[snippets='http-request']
+== 게시글
+
+=== 게시글 등록
+==== 성공
+operation::post/create/success[snippets='request-fields,response-fields,http-request,http-response']
+==== 실패
+operation::post/create/success[snippets='request-fields']
+operation::post/create/fail/emptyTitleAndContent[snippets='response-fields']
+===== 게시글 제목을 입력하지 않는 경우
+operation::post/create/fail/emptyTitle[snippets='http-request,http-response']
+===== 게시글 내용을 입력하지 않는 경우
+operation::post/create/fail/emptyContent[snippets='http-request,http-response']
