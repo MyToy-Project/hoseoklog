@@ -12,9 +12,10 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -36,6 +37,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders;
 import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -126,7 +128,7 @@ class PostControllerTest {
                                 responseFields(
                                         fieldWithPath("code").type(JsonFieldType.STRING)
                                                 .description("HTTP Response Status"),
-                                        fieldWithPath("message").type(JsonFieldType.STRING).description("오류 대표 메시지"),
+                                        fieldWithPath("message").type(JsonFieldType.STRING).description("대표 오류 메시지"),
                                         fieldWithPath("validation").type(JsonFieldType.OBJECT)
                                                 .description("오류가 있는 필드 및 설명을 담는 객체"),
                                         fieldWithPath("validation.title").type(JsonFieldType.STRING)
@@ -189,22 +191,95 @@ class PostControllerTest {
                 );
     }
 
-    @DisplayName("글 단건 조회")
+    @DisplayName("게시글 작성시 제목에 바보라는 키워드가 추가되면 400이 반환됩니다.")
+    @Test
+    void writePost_withInvalidKeyword() throws Exception {
+        // given
+        PostCreateRequest request = PostCreateRequest.builder()
+                .title("제목 바보입니다.")
+                .content("내용입니다.")
+                .build();
+
+        // expected
+        mockMvc.perform(post("/posts")
+                        .content(objectMapper.writeValueAsString(request))
+                        .contentType(APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andDo(
+                        document(
+                                "post/create/fail/disallowedKeywordInTitle",
+                                getDocumentRequest(),
+                                getDocumentResponse()
+                        )
+                );
+        ;
+    }
+
+    @DisplayName("글 단건 조회 성공시 게시글 및 200반환")
     @Test
     void findOnePost() throws Exception {
         // given
         Post post = Post.builder()
-                .title("12345678901234567890")
-                .content("bar")
+                .title("제목입니다.")
+                .content("내용입니다.")
                 .build();
         postRepository.save(post);
 
         // when & then
-        mockMvc.perform(get("/posts/{postId}", post.getId())
+        mockMvc.perform(RestDocumentationRequestBuilders.get("/posts/{postId}", post.getId())
                         .contentType(APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("12345678901234567890"))
-                .andExpect(jsonPath("$.content").value("bar"));
+                .andExpectAll(status().isOk(),
+                        jsonPath("$.title").value("제목입니다."),
+                        jsonPath("$.content").value("내용입니다."))
+                .andDo(
+                        document("post/findOne/success",
+                                getDocumentRequest(),
+                                getDocumentResponse(),
+                                pathParameters(
+                                        parameterWithName("postId").description("게시글 id")
+                                ),
+                                responseFields(
+                                        fieldWithPath("title").type(JsonFieldType.STRING).description("게시글 제목"),
+                                        fieldWithPath("content").type(JsonFieldType.STRING).description("게시글 내용")
+                                )
+                        )
+                );
+    }
+
+    @DisplayName("없는 id로 글 단건 조회시 404반환")
+    @Test
+    void findOnePost_exception_withInvalidId() throws Exception {
+        // given
+        Post post = Post.builder()
+                .title("제목입니다.")
+                .content("내용입니다.")
+                .build();
+        postRepository.save(post);
+
+        // when & then
+        mockMvc.perform(RestDocumentationRequestBuilders.get("/posts/{postId}", Long.MAX_VALUE)
+                        .contentType(APPLICATION_JSON))
+                .andExpectAll(status().isNotFound(),
+                        jsonPath("$.code").value("404"),
+                        jsonPath("$.message").value("존재하지 않는 게시글입니다."),
+                        jsonPath("$.validation").isEmpty())
+                .andDo(
+                        document("post/findOne/fail/notFoundId",
+                                getDocumentRequest(),
+                                getDocumentResponse(),
+                                pathParameters(
+                                        parameterWithName("postId").description("게시글 id")
+                                ),
+                                responseFields(
+                                        fieldWithPath("code").type(JsonFieldType.STRING)
+                                                .description("HTTP Response Status"),
+                                        fieldWithPath("message").type(JsonFieldType.STRING)
+                                                .description("대표 오류 메시지"),
+                                        fieldWithPath("validation").type(JsonFieldType.OBJECT)
+                                                .description("오류가 있는 필드 및 설명을 담는 객체")
+                                )
+                        )
+                );
     }
 
     @DisplayName("글 1페이지 조회")
@@ -222,13 +297,32 @@ class PostControllerTest {
         // when & then
         mockMvc.perform(get("/posts?page=1&size=10")
                         .contentType(APPLICATION_JSON))
-                .andExpect(status().isOk())
                 .andExpectAll(
+                        status().isOk(),
                         jsonPath("$.posts.size()", is(10)),
                         jsonPath("$.posts[0].title").value("foo30"),
                         jsonPath("$.posts[0].content").value("bar30"),
                         jsonPath("$.posts[4].title").value("foo26"),
                         jsonPath("$.posts[4].content").value("bar26")
+                ).andDo(
+                        document(
+                                "post/findAll/success",
+                                getDocumentRequest(),
+                                getDocumentResponse(),
+                                queryParameters(
+                                        parameterWithName("page").description("요청 페이지").optional(),
+                                        parameterWithName("size").description("페이지당 게시글 개수").optional()
+                                ),
+                                responseFields(
+                                        fieldWithPath("posts").type(JsonFieldType.ARRAY).description("게시글들을 담는 객체")
+                                                .attributes(getAttribute("format", "작성 기준 내림차순으로 보여집니다."))
+                                                .optional(),
+                                        fieldWithPath("posts[].title").type(JsonFieldType.STRING).description("게시글 제목")
+                                                .optional(),
+                                        fieldWithPath("posts[].content").type(JsonFieldType.STRING).description("게시글 내용")
+                                                .optional()
+                                )
+                        )
                 );
     }
 
@@ -257,7 +351,7 @@ class PostControllerTest {
                 );
     }
 
-    @DisplayName("작성한 게시글의 제목을 수정할 수 있다.")
+    @DisplayName("작성한 게시글의 제목 및 내용을 수정할 수 있다.")
     @Test
     void updatePostTitle() throws Exception {
         // given
@@ -270,47 +364,68 @@ class PostControllerTest {
         // when
         PostUpdateRequest postUpdateRequest = PostUpdateRequest.builder()
                 .title("새로운 제목입니다.")
+                .content("새로운 내용입니다.")
                 .build();
-        mockMvc.perform(patch("/posts/{postId}", post.getId())
+        mockMvc.perform(RestDocumentationRequestBuilders.patch("/posts/{postId}", post.getId())
                         .content(objectMapper.writeValueAsString(postUpdateRequest))
                         .contentType(APPLICATION_JSON))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andDo(
+                        document(
+                                "post/updatePost/success",
+                                getDocumentRequest(),
+                                getDocumentResponse(),
+                                pathParameters(
+                                        parameterWithName("postId").description("게시글 id")
+                                )
+                        )
+                );
 
         // then
         Post findPost = postRepository.findById(post.getId())
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. id=" + post.getId()));
         assertAll(
                 () -> assertThat(findPost.getTitle()).isEqualTo("새로운 제목입니다."),
-                () -> assertThat(findPost.getContent()).isEqualTo("내용입니다.")
+                () -> assertThat(findPost.getContent()).isEqualTo("새로운 내용입니다.")
         );
     }
 
-    @DisplayName("작성한 게시글의 내용을 수정할 수 있다.")
+    @DisplayName("존재하지 않는 게시글을 수정하면 404가 반환됩니다.")
     @Test
-    void updatePostContent() throws Exception {
+    void updateNotExistsPost() throws Exception {
         // given
-        Post post = Post.builder()
-                .title("제목입니다.")
-                .content("내용입니다.")
+        PostUpdateRequest updateRequest = PostUpdateRequest.builder()
+                .title("제목")
+                .content("내용")
                 .build();
-        postRepository.save(post);
 
-        // when
-        PostUpdateRequest postUpdateRequest = PostUpdateRequest.builder()
-                .content("새로운 내용입니다.")
-                .build();
-        mockMvc.perform(patch("/posts/{postId}", post.getId())
-                        .content(objectMapper.writeValueAsString(postUpdateRequest))
+        // expected
+        mockMvc.perform(RestDocumentationRequestBuilders.patch("/posts/{postId}", 1L)
+                        .content(objectMapper.writeValueAsString(updateRequest))
                         .contentType(APPLICATION_JSON))
-                .andExpect(status().isOk());
-
-        // then
-        Post findPost = postRepository.findById(post.getId())
-                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다. id=" + post.getId()));
-        assertAll(
-                () -> assertThat(findPost.getTitle()).isEqualTo("제목입니다."),
-                () -> assertThat(findPost.getContent()).isEqualTo("새로운 내용입니다.")
-        );
+                .andExpectAll(
+                        status().isNotFound(),
+                        jsonPath("$.code").value("404"),
+                        jsonPath("$.message").value("존재하지 않는 게시글입니다."),
+                        jsonPath("$.validation").isEmpty()
+                )
+                .andDo(
+                        document("post/updatePost/fail/notFoundPost",
+                                getDocumentRequest(),
+                                getDocumentResponse(),
+                                pathParameters(
+                                        parameterWithName("postId").description("게시글 id")
+                                ),
+                                responseFields(
+                                        fieldWithPath("code").type(JsonFieldType.STRING)
+                                                .description("HTTP Response Status"),
+                                        fieldWithPath("message").type(JsonFieldType.STRING)
+                                                .description("대표 오류 메시지"),
+                                        fieldWithPath("validation").type(JsonFieldType.OBJECT)
+                                                .description("오류가 있는 필드 및 설명을 담는 객체")
+                                )
+                        )
+                );
     }
 
     @DisplayName("게시글을 삭제할 수 있다.")
@@ -324,62 +439,53 @@ class PostControllerTest {
         postRepository.save(post);
 
         // then
-        mockMvc.perform(delete("/posts/{postId}", post.getId())
+        mockMvc.perform(RestDocumentationRequestBuilders.delete("/posts/{postId}", post.getId())
                         .contentType(APPLICATION_JSON))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andDo(
+                        document(
+                                "post/delete/success",
+                                getDocumentRequest(),
+                                getDocumentResponse(),
+                                pathParameters(
+                                        parameterWithName("postId").description("게시글 id")
+                                )
+                        )
+                );
 
         // then
         long count = postRepository.count();
         assertThat(count).isEqualTo(0);
     }
 
-    @DisplayName("존재하지 않는 게시글을 조회하면 404가 반환됩니다.")
-    @Test
-    void findNotExistsPost() throws Exception {
-        // expected
-        mockMvc.perform(get("/posts/{postId}", 1L)
-                        .contentType(APPLICATION_JSON))
-                .andExpect(status().isNotFound());
-    }
-
-    @DisplayName("존재하지 않는 게시글을 수정하면 404가 반환됩니다.")
-    @Test
-    void updateNotExistsPost() throws Exception {
-        // given
-        PostUpdateRequest updateRequest = PostUpdateRequest.builder()
-                .title("제목")
-                .content("내용")
-                .build();
-
-        // expected
-        mockMvc.perform(patch("/posts/{postId}", 1L)
-                        .content(objectMapper.writeValueAsString(updateRequest))
-                        .contentType(APPLICATION_JSON))
-                .andExpect(status().isNotFound());
-    }
-
     @DisplayName("존재하지 않는 게시글을 삭제하면 404가 반환됩니다.")
     @Test
     void deleteNotExistsPost() throws Exception {
         // expected
-        mockMvc.perform(delete("/posts/{postId}", 1L)
+        mockMvc.perform(RestDocumentationRequestBuilders.delete("/posts/{postId}", 1L)
                         .contentType(APPLICATION_JSON))
-                .andExpect(status().isNotFound());
-    }
-
-    @DisplayName("게시글 작성시 제목에 바보라는 키워드가 추가되면 400이 반환됩니다.")
-    @Test
-    void writePost_withInvalidKeyword() throws Exception {
-        // given
-        PostCreateRequest request = PostCreateRequest.builder()
-                .title("제목 바보입니다.")
-                .content("내용입니다.")
-                .build();
-
-        // expected
-        mockMvc.perform(post("/posts")
-                        .content(objectMapper.writeValueAsString(request))
-                        .contentType(APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpectAll(
+                        status().isNotFound(),
+                        jsonPath("$.code").value("404"),
+                        jsonPath("$.message").value("존재하지 않는 게시글입니다."),
+                        jsonPath("$.validation").isEmpty()
+                ).andDo(
+                        document(
+                                "post/delete/fail/notFoundPost",
+                                getDocumentRequest(),
+                                getDocumentResponse(),
+                                pathParameters(
+                                        parameterWithName("postId").description("게시글 id")
+                                ),
+                                responseFields(
+                                        fieldWithPath("code").type(JsonFieldType.STRING)
+                                                .description("HTTP Response Status"),
+                                        fieldWithPath("message").type(JsonFieldType.STRING)
+                                                .description("대표 오류 메시지"),
+                                        fieldWithPath("validation").type(JsonFieldType.OBJECT)
+                                                .description("오류가 있는 필드 및 설명을 담는 객체")
+                                )
+                        )
+                );
     }
 }
